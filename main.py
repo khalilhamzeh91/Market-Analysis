@@ -94,8 +94,8 @@ def main():
     parser = argparse.ArgumentParser(description="AI Market Analysis Bot")
     parser.add_argument("--loop", action="store_true",
                         help="Run continuously every 15 minutes")
-    parser.add_argument("--interval", type=int, default=5,
-                        help="Loop interval in minutes (default: 5)")
+    parser.add_argument("--interval", type=int, default=3,
+                        help="Loop interval in minutes (default: 3)")
     args = parser.parse_args()
 
     if args.loop:
