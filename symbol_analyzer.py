@@ -47,152 +47,104 @@ Last {n_candles} candles (OHLC):
 
     tf_data_str = "\n".join(sections)
 
-    return f"""You are a professional financial market analyst with deep expertise in technical analysis, price action, and multi-timeframe analysis. You are analyzing {symbol} for a real trading account.
+    return f"""You are a professional gold (XAUUSD) market analyst. Analyze the data below and respond ONLY with a single valid JSON object — no markdown, no text before or after, just the JSON.
 
 ## Market Data — {symbol}
 {tf_data_str}
 
-## Your Analysis Task
+Respond with this exact JSON structure (fill in real values from the data):
 
-Provide a structured, professional market analysis covering ALL sections below. Be specific — use the actual price levels from the data.
-
-### 1. TREND DIRECTION & STRENGTH
-Analyze the trend on each timeframe separately. Are the EMAs aligned? Is there agreement across timeframes? Rate trend strength: Strong / Moderate / Weak / Ranging.
-
-### 2. SUPPORT & RESISTANCE LEVELS
-Identify 2-3 key support levels and 2-3 key resistance levels from the H4 data. Use swing highs/lows, EMA confluences, and Bollinger Band boundaries. Give specific price levels.
-
-### 3. RSI INTERPRETATION
-Interpret RSI on all three timeframes. Is there RSI divergence? What does momentum suggest for the next 4-8 hours?
-
-### 4. MACD INTERPRETATION
-Is MACD above or below zero? Recent crossover? Histogram expanding or contracting? Does this confirm or contradict price trend?
-
-### 5. BOLLINGER BAND ANALYSIS
-Where is price relative to the bands on each timeframe? Is volatility expanding or contracting? Band squeeze forming? Is price walking the bands or mean-reverting?
-
-### 6. MARKET SENTIMENT & CONTEXT
-Based purely on the technical picture: accumulation or distribution? Trending or ranging market? High-conviction setup or wait-and-see?
-
-### 7. SHORT-TERM OUTLOOK (next 4-8 hours / M15-H1)
-Most probable price path. Give a likely price range. What confirms this view? What invalidates it?
-
-### 8. MEDIUM-TERM OUTLOOK (next 1-3 days / H4)
-Directional bias. Where could price realistically reach? Any key levels that change the picture?
-
-### 9. TRADING RECOMMENDATION
-BUY / SELL / WAIT
-- Entry zone: [price range]
-- Stop loss: [price level and reasoning]
-- Target 1: [price level]
-- Target 2: [price level]
-- Risk/Reward ratio: [calculated]
-- If WAIT: what condition must be met before entry is justified?
-
-### 10. CONFIDENCE SCORE
-Rate your confidence 0-100:
-- 90-100: All timeframes aligned, clear setup
-- 70-89: Good setup with minor conflicting signals
-- 50-69: Mixed signals, confirmation needed
-- Below 50: Too uncertain, do not trade
-
-Confidence Score: [NUMBER]/100
-Primary reason: [one sentence]
-
-### 11. STRUCTURED DATA
-After your full analysis, output ONLY this JSON block. Do not modify the structure. Fill in actual values:
-
-```json
 {{
-  "critical_levels": [
-    {{"price": "0000.00", "status": "BEING_TESTED", "note": "describe in 5 words"}},
-    {{"price": "0000.00", "status": "SUPPORT", "note": "describe in 5 words"}},
-    {{"price": "0000.00", "status": "RESISTANCE", "note": "describe in 5 words"}},
-    {{"price": "0000.00", "status": "BROKEN_RESISTANCE", "note": "describe in 5 words"}}
+  "price": 0000.00,
+  "trend_overall": "BEARISH",
+  "confidence": 75,
+  "timeframes": [
+    {{
+      "tf": "H4",
+      "label": "Macro / Structure",
+      "trend": "BEARISH",
+      "summary": "2-3 sentence analysis using actual price levels and indicator values"
+    }},
+    {{
+      "tf": "H1",
+      "label": "Intermediate",
+      "trend": "BEARISH",
+      "summary": "2-3 sentence analysis"
+    }},
+    {{
+      "tf": "M15",
+      "label": "Short-Term",
+      "trend": "NEUTRAL",
+      "summary": "2-3 sentence analysis"
+    }},
+    {{
+      "tf": "M5",
+      "label": "Intraday",
+      "trend": "OVERSOLD",
+      "summary": "2-3 sentence analysis"
+    }}
+  ],
+  "levels": [
+    {{"label": "Major Resistance", "price": "0000–0000", "type": "RESISTANCE"}},
+    {{"label": "Near Resistance",  "price": "0000–0000", "type": "RESISTANCE"}},
+    {{"label": "Current Price",    "price": "0000.00",   "type": "CURRENT"}},
+    {{"label": "Immediate Support","price": "0000–0000", "type": "SUPPORT"}},
+    {{"label": "Key Support Zone", "price": "0000–0000", "type": "SUPPORT"}}
   ],
   "scenarios": [
-    {{"description": "describe scenario", "probability": 55}},
-    {{"description": "describe scenario", "probability": 45}}
-  ]
+    {{"description": "scenario description → target", "probability": 50, "direction": "BEAR"}},
+    {{"description": "scenario description → target", "probability": 30, "direction": "NEUTRAL"}},
+    {{"description": "scenario description → target", "probability": 20, "direction": "BULL"}}
+  ],
+  "summary": "2-3 paragraph analyst summary. Be specific with price levels.",
+  "tags": [
+    {{"text": "Macro: Bearish", "type": "bear"}},
+    {{"text": "Watch: 0000 support", "type": "bull"}}
+  ],
+  "recommendation": "SELL",
+  "entry_zone": "0000–0000",
+  "stop_loss": "0000",
+  "target_1": "0000",
+  "target_2": "0000",
+  "risk_reward": "1:2.5"
 }}
-```
 
-Status values allowed: BEING_TESTED, SUPPORT, RESISTANCE, BROKEN_RESISTANCE, RECENT_LOW, RECENT_HIGH, PSYCHOLOGICAL
-
-Be analytical, not generic. Reference actual price levels."""
+trend values allowed: BULLISH, BEARISH, NEUTRAL, OVERSOLD, OVERBOUGHT, RANGING
+direction values allowed: BULL, BEAR, NEUTRAL
+type (levels) values allowed: RESISTANCE, SUPPORT, CURRENT
+recommendation values allowed: BUY, SELL, WAIT"""
 
 
 def parse_analysis(raw: str) -> dict:
-    result = {
-        "recommendation":   "WAIT",
-        "entry_zone":       "N/A",
-        "stop_loss":        "N/A",
-        "target_1":         "N/A",
-        "target_2":         "N/A",
-        "risk_reward":      "N/A",
-        "confidence_score": 50,
-        "confidence_reason":"",
-        "critical_levels":  [],
-        "scenarios":        [],
-        "full_analysis":    raw,
+    default = {
+        "price":          None,
+        "trend_overall":  "NEUTRAL",
+        "confidence":     50,
+        "timeframes":     [],
+        "levels":         [],
+        "scenarios":      [],
+        "summary":        raw,
+        "tags":           [],
+        "recommendation": "WAIT",
+        "entry_zone":     "N/A",
+        "stop_loss":      "N/A",
+        "target_1":       "N/A",
+        "target_2":       "N/A",
+        "risk_reward":    "N/A",
+        "full_analysis":  raw,
     }
-
-    # Confidence score
-    m = re.search(r"Confidence Score[:\s]+(\d{1,3})\s*/\s*100", raw, re.IGNORECASE)
-    if m:
-        result["confidence_score"] = int(m.group(1))
-
-    # Primary reason
-    m = re.search(r"Primary reason[:\s]+(.+)", raw, re.IGNORECASE)
-    if m:
-        result["confidence_reason"] = m.group(1).strip()
-
-    # Recommendation
-    m = re.search(r"(?:TRADING RECOMMENDATION|Recommendation)[^\n]*\n+\s*(BUY|SELL|WAIT)", raw, re.IGNORECASE)
-    if m:
-        result["recommendation"] = m.group(1).upper()
-    else:
-        # Fallback: look for standalone BUY/SELL/WAIT near recommendation section
-        m = re.search(r"###\s*9\..*?(?:^|\n)\s*(BUY|SELL|WAIT)\b", raw, re.IGNORECASE | re.DOTALL)
-        if m:
-            result["recommendation"] = m.group(1).upper()
-
-    # Entry zone
-    m = re.search(r"Entry zone[:\s]+([^\n]+)", raw, re.IGNORECASE)
-    if m:
-        result["entry_zone"] = m.group(1).strip()
-
-    # Stop loss
-    m = re.search(r"Stop loss[:\s]+([^\n]+)", raw, re.IGNORECASE)
-    if m:
-        result["stop_loss"] = m.group(1).strip()
-
-    # Target 1
-    m = re.search(r"Target 1[:\s]+([^\n]+)", raw, re.IGNORECASE)
-    if m:
-        result["target_1"] = m.group(1).strip()
-
-    # Target 2
-    m = re.search(r"Target 2[:\s]+([^\n]+)", raw, re.IGNORECASE)
-    if m:
-        result["target_2"] = m.group(1).strip()
-
-    # Risk/reward
-    m = re.search(r"Risk[/\\]Reward[:\s]+([^\n]+)", raw, re.IGNORECASE)
-    if m:
-        result["risk_reward"] = m.group(1).strip()
-
-    # Extract JSON block for critical levels and scenarios
-    m = re.search(r"```json\s*(\{.*?\})\s*```", raw, re.DOTALL)
-    if m:
-        try:
-            data = json.loads(m.group(1))
-            result["critical_levels"] = data.get("critical_levels", [])
-            result["scenarios"]       = data.get("scenarios", [])
-        except json.JSONDecodeError:
-            pass
-
-    return result
+    try:
+        # Strip any accidental markdown fences
+        clean = re.sub(r"```json|```", "", raw).strip()
+        data  = json.loads(clean)
+        default.update(data)
+        default["full_analysis"] = raw
+        # Back-compat keys
+        default["confidence_score"]  = data.get("confidence", 50)
+        default["confidence_reason"] = ""
+    except (json.JSONDecodeError, Exception):
+        pass
+    return default
 
 
 def analyze_symbol(symbol: str, mtf_data: dict, scan_data: dict) -> dict:

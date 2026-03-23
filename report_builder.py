@@ -146,145 +146,130 @@ def render_scanner(scanner_results: list) -> str:
 
 
 def render_analysis_card(a: dict, idx: int) -> str:
-    symbol   = a["symbol"]
-    score    = a.get("score", 0)
-    direction= a.get("direction", "NEUTRAL")
-    trend    = a.get("trend", "—").replace("_", " ")
-    conf     = a.get("confidence_score", 50)
-    rec      = a.get("recommendation", "WAIT")
-    snaps    = a.get("snapshots", {})
+    symbol  = a["symbol"]
+    score   = a.get("score", 0)
+    price   = a.get("price") or (a.get("snapshots", {}).get("M5", {}) or a.get("snapshots", {}).get("M15", {}) or {}).get("price", "—")
+    conf    = a.get("confidence", a.get("confidence_score", 50))
+    rec     = a.get("recommendation", "WAIT")
 
-    # Indicator snapshot table
-    tf_labels = [tf for tf in ["M5", "M15", "H1", "H4"] if tf in snaps]
-    header_row = "<th>Indicator</th>" + "".join(f"<th>{tf}</th>" for tf in tf_labels)
-    fields = [
-        ("Price",      "price"),
-        ("EMA 10",     "ema_10"),
-        ("EMA 50",     "ema_50"),
-        ("EMA 200",    "ema_200"),
-        ("RSI 14",     "rsi"),
-        ("MACD",       "macd"),
-        ("MACD Sig",   "macd_signal"),
-        ("MACD Hist",  "macd_hist"),
-        ("BB Upper",   "bb_upper"),
-        ("BB Mid",     "bb_mid"),
-        ("BB Lower",   "bb_lower"),
-        ("ATR 14",     "atr"),
-    ]
-    snap_rows = ""
-    for label, key in fields:
-        vals = "".join(f"<td>{snaps[tf].get(key,'—')}</td>" for tf in tf_labels)
-        snap_rows += f"<tr><td><b>{label}</b></td>{vals}</tr>"
+    # Trend colour helper
+    def tc(trend):
+        t = str(trend).upper()
+        if t in ("BULLISH",):          return "#36b37e", "bull"
+        if t in ("BEARISH",):          return "#e05555", "bear"
+        if t in ("OVERSOLD",):         return "#f0c040", "neutral"
+        if t in ("OVERBOUGHT",):       return "#e05555", "bear"
+        return "#888", "neutral"
 
-    snap_table = f'''<table class="snap-table" style="margin:16px 0">
-      <tr>{header_row}</tr>
-      {snap_rows}
-    </table>'''
+    # ── Timeframe cards ──────────────────────────────────────────────
+    tf_cards = ""
+    for tf in a.get("timeframes", []):
+        color, cls = tc(tf.get("trend", "NEUTRAL"))
+        tf_cards += f'''
+        <div style="background:#1a1d27;border-radius:8px;padding:12px;border-left:3px solid {color}">
+          <div style="font-size:10px;background:#2a2d3a;color:#f0c040;border-radius:3px;padding:1px 6px;display:inline-block;margin-bottom:6px">{tf.get("tf","")}</div>
+          <div style="font-size:12px;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">
+            {tf.get("label","")}
+            <span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:10px;font-weight:bold;margin-left:6px;background:{color}22;color:{color};border:1px solid {color}66">{tf.get("trend","")}</span>
+          </div>
+          <p style="font-size:12px;color:#ccc;line-height:1.5">{tf.get("summary","")}</p>
+        </div>'''
 
-    rec_box = f'''<div class="rec-box">
-      <div style="margin-bottom:10px">{_rec_badge(rec)}</div>
-      <table style="font-size:13px;width:auto">
-        <tr><td style="padding:3px 12px 3px 0;color:#666">Entry zone</td><td><b>{a.get("entry_zone","N/A")}</b></td></tr>
-        <tr><td style="padding:3px 12px 3px 0;color:#666">Stop loss</td><td><b>{a.get("stop_loss","N/A")}</b></td></tr>
-        <tr><td style="padding:3px 12px 3px 0;color:#666">Target 1</td><td><b>{a.get("target_1","N/A")}</b></td></tr>
-        <tr><td style="padding:3px 12px 3px 0;color:#666">Target 2</td><td><b>{a.get("target_2","N/A")}</b></td></tr>
-        <tr><td style="padding:3px 12px 3px 0;color:#666">Risk / Reward</td><td><b>{a.get("risk_reward","N/A")}</b></td></tr>
+    # ── Key price levels ─────────────────────────────────────────────
+    level_rows = ""
+    for lv in a.get("levels", []):
+        t = lv.get("type","").upper()
+        if t == "RESISTANCE":
+            lc, lt = "#e05555", "res"
+        elif t == "SUPPORT":
+            lc, lt = "#36b37e", "sup"
+        else:
+            lc, lt = "#f0c040", "cur"
+        level_rows += f'''
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #2a2d3a;font-size:12px">
+          <span style="color:#888">{lv.get("label","")}</span>
+          <span style="font-weight:bold;color:#f0f0f0">${lv.get("price","")}</span>
+          <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:{lc}22;color:{lc}">{t}</span>
+        </div>'''
+
+    # ── Scenario probability bars ────────────────────────────────────
+    scenario_rows = ""
+    for s in a.get("scenarios", []):
+        prob = s.get("probability", 0)
+        d    = str(s.get("direction","NEUTRAL")).upper()
+        bc   = "#36b37e" if d == "BULL" else "#e05555" if d == "BEAR" else "#f0c040"
+        emoji= "🟢" if d == "BULL" else "🔴" if d == "BEAR" else "🟡"
+        scenario_rows += f'''
+        <div style="margin-bottom:8px">
+          <div style="font-size:11px;color:#ccc;margin-bottom:3px;display:flex;justify-content:space-between">
+            <span>{emoji} {s.get("description","")}</span>
+            <span style="font-weight:bold;color:{bc}">{prob}%</span>
+          </div>
+          <div style="background:#2a2d3a;border-radius:4px;height:8px">
+            <div style="width:{prob}%;background:{bc};height:8px;border-radius:4px"></div>
+          </div>
+        </div>'''
+
+    # ── Tags ─────────────────────────────────────────────────────────
+    tags_html = ""
+    for tag in a.get("tags", []):
+        bg = "#36b37e33" if tag.get("type") == "bull" else "#e0555533"
+        fc = "#36b37e"   if tag.get("type") == "bull" else "#e05555"
+        tags_html += f'<span style="display:inline-block;background:{bg};color:{fc};border-radius:4px;padding:1px 6px;font-size:10px;margin:2px">{tag.get("text","")}</span>'
+
+    # ── Trade recommendation ─────────────────────────────────────────
+    rec_colors = {"BUY": "#36b37e", "SELL": "#e05555", "WAIT": "#f0c040"}
+    rc = rec_colors.get(rec, "#888")
+    rec_box = f'''
+    <div style="background:#1a1d27;border-radius:8px;padding:14px;border:1px solid {rc}44;margin-top:10px">
+      <span style="background:{rc};color:{'#000' if rec=='WAIT' else '#fff'};padding:4px 16px;border-radius:4px;font-size:14px;font-weight:700">{rec}</span>
+      <table style="margin-top:10px;font-size:12px;color:#ccc">
+        <tr><td style="padding:3px 16px 3px 0;color:#888">Entry zone</td><td style="color:#f0f0f0;font-weight:600">{a.get("entry_zone","N/A")}</td></tr>
+        <tr><td style="padding:3px 16px 3px 0;color:#888">Stop loss</td> <td style="color:#e05555;font-weight:600">{a.get("stop_loss","N/A")}</td></tr>
+        <tr><td style="padding:3px 16px 3px 0;color:#888">Target 1</td>  <td style="color:#36b37e;font-weight:600">{a.get("target_1","N/A")}</td></tr>
+        <tr><td style="padding:3px 16px 3px 0;color:#888">Target 2</td>  <td style="color:#36b37e;font-weight:600">{a.get("target_2","N/A")}</td></tr>
+        <tr><td style="padding:3px 16px 3px 0;color:#888">R:R</td>       <td style="color:#f0c040;font-weight:600">{a.get("risk_reward","N/A")}</td></tr>
       </table>
     </div>'''
 
-    # Critical levels table
-    critical_levels = a.get("critical_levels", [])
-    status_icons = {
-        "BROKEN_RESISTANCE": ("❌", "#d63031", "Broken — now resistance"),
-        "BEING_TESTED":      ("⚠️", "#fdcb6e", "Being tested NOW"),
-        "SUPPORT":           ("🟢", "#00b894", "Support"),
-        "RESISTANCE":        ("🔴", "#d63031", "Resistance"),
-        "RECENT_LOW":        ("📉", "#636e72", "Recent low"),
-        "RECENT_HIGH":       ("📈", "#636e72", "Recent high"),
-        "PSYCHOLOGICAL":     ("🎯", "#2c7be5", "Psychological level"),
-    }
-    if critical_levels:
-        level_rows = ""
-        for lv in critical_levels:
-            icon, color, _ = status_icons.get(lv["status"], ("•", "#555", ""))
-            level_rows += f'''<tr>
-              <td><b>{lv["price"]}</b></td>
-              <td><span style="color:{color}">{icon} {lv["note"]}</span></td>
-            </tr>'''
-        critical_html = f'''<div style="margin:16px 0">
-          <h4 style="color:#1a1a2e;margin-bottom:8px">🎯 Critical Levels NOW</h4>
-          <table style="width:100%;font-size:13px">
-            <tr style="border-bottom:2px solid #eee">
-              <th style="text-align:left;padding:6px 12px 6px 0;color:#555;background:none;font-weight:600">Level</th>
-              <th style="text-align:left;padding:6px 0;color:#555;background:none;font-weight:600">Status</th>
-            </tr>
-            {level_rows}
-          </table>
-        </div>'''
-    else:
-        critical_html = ""
+    summary_text = a.get("summary", "").replace("\n", "<br>")
 
-    # Scenario probabilities
-    scenarios = a.get("scenarios", [])
-    if scenarios:
-        scen_rows = ""
-        for s in scenarios:
-            prob = s["probability"]
-            bar_color = "#00b894" if prob >= 60 else "#fdcb6e" if prob >= 40 else "#d63031"
-            scen_rows += f'''<tr>
-              <td style="padding:8px 12px 8px 0;font-weight:600">{s["description"]}</td>
-              <td style="padding:8px 0;white-space:nowrap">
-                <div style="display:flex;align-items:center;gap:8px">
-                  <div style="background:#e0e0e0;border-radius:4px;height:8px;width:100px">
-                    <div style="width:{prob}%;background:{bar_color};height:8px;border-radius:4px"></div>
-                  </div>
-                  <b style="color:{bar_color}">{prob}%</b>
-                </div>
-              </td>
-            </tr>'''
-        scenarios_html = f'''<div style="margin:16px 0">
-          <h4 style="color:#1a1a2e;margin-bottom:8px">📊 Scenario Probabilities</h4>
-          <table style="width:100%;font-size:13px">
-            <tr style="border-bottom:2px solid #eee">
-              <th style="text-align:left;padding:6px 12px 6px 0;color:#555;background:none;font-weight:600">Scenario</th>
-              <th style="text-align:left;padding:6px 0;color:#555;background:none;font-weight:600">Probability</th>
-            </tr>
-            {scen_rows}
-          </table>
-        </div>'''
-    else:
-        scenarios_html = ""
-
-    analysis_html = _format_analysis_text(a.get("full_analysis", ""))
-
-    return f'''<div class="panel" style="margin-bottom:20px">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
-    <div>
-      <h3 style="font-size:20px;margin-bottom:4px">{symbol} — Deep Analysis</h3>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        {_direction_badge(direction)}
-        <span style="font-size:13px;color:#555">Trend: <b>{trend}</b></span>
-        <span style="font-size:13px;color:#555">Scanner Score: <b>{score}/100</b></span>
-      </div>
-    </div>
-    <div style="text-align:right">
-      <div style="font-size:12px;color:#888;margin-bottom:4px">Confidence</div>
-      {_confidence_bar(conf)}
-      {f'<div style="font-size:11px;color:#aaa;margin-top:4px;max-width:260px">{a.get("confidence_reason","")}</div>' if a.get("confidence_reason") else ""}
-    </div>
+    return f'''
+<div style="background:#0f1117;border-radius:10px;padding:16px;margin-bottom:20px;font-family:Segoe UI,Arial,sans-serif">
+  <!-- Header -->
+  <h1 style="text-align:center;color:#f0c040;font-size:18px;margin-bottom:4px;letter-spacing:1px">⚡ {symbol} — Multi-Timeframe Analysis</h1>
+  <div style="text-align:center;font-size:11px;color:#888;margin-bottom:14px">
+    Current: <b style="color:#f0f0f0">${price}</b> &nbsp;|&nbsp;
+    Confidence: <b style="color:#f0c040">{conf}/100</b> &nbsp;|&nbsp;
+    Scanner Score: <b style="color:#f0c040">{score}/100</b>
   </div>
 
-  {snap_table}
-  {critical_html}
-  {scenarios_html}
-  {rec_box}
+  <!-- Timeframe grid -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+    {tf_cards}
+  </div>
 
-  <details>
-    <summary>Read Full AI Analysis</summary>
-    <div style="border-top:1px solid #eee;padding-top:14px;line-height:1.6;font-size:13px;color:#444">
-      {analysis_html}
-    </div>
-  </details>
+  <!-- Key levels -->
+  <div style="background:#1a1d27;border-radius:8px;padding:12px;margin-bottom:10px">
+    <div style="font-size:12px;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">📌 Key Price Levels</div>
+    {level_rows}
+  </div>
+
+  <!-- Scenarios -->
+  <div style="background:#1a1d27;border-radius:8px;padding:12px;margin-bottom:10px">
+    <div style="font-size:12px;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">📊 Scenario Probabilities (Next 24–48h)</div>
+    {scenario_rows}
+  </div>
+
+  <!-- Analyst summary -->
+  <div style="background:#1a1d27;border-radius:8px;padding:12px;border:1px solid #f0c04033">
+    <div style="font-size:12px;color:#f0c040;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🧠 Analyst Summary</div>
+    <p style="font-size:12px;color:#ccc;line-height:1.6">{summary_text}</p>
+    <div style="margin-top:10px">{tags_html}</div>
+  </div>
+
+  <!-- Trade recommendation -->
+  {rec_box}
 </div>'''
 
 
