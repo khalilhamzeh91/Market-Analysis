@@ -223,6 +223,11 @@ def analyze_symbol(symbol: str, mtf_data: dict, scan_data: dict) -> dict:
     )
 
     raw = response.content[0].text
+
+    # Debug: save raw Claude response to file
+    with open("C:/Users/khali/Documents/market_analysis_bot/debug_response.txt", "w", encoding="utf-8") as f:
+        f.write(raw)
+
     parsed = parse_analysis(raw)
 
     return {**scan_data, "snapshots": snapshots, **parsed}
