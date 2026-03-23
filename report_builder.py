@@ -192,6 +192,69 @@ def render_analysis_card(a: dict, idx: int) -> str:
       </table>
     </div>'''
 
+    # Critical levels table
+    critical_levels = a.get("critical_levels", [])
+    status_icons = {
+        "BROKEN_RESISTANCE": ("❌", "#d63031", "Broken — now resistance"),
+        "BEING_TESTED":      ("⚠️", "#fdcb6e", "Being tested NOW"),
+        "SUPPORT":           ("🟢", "#00b894", "Support"),
+        "RESISTANCE":        ("🔴", "#d63031", "Resistance"),
+        "RECENT_LOW":        ("📉", "#636e72", "Recent low"),
+        "RECENT_HIGH":       ("📈", "#636e72", "Recent high"),
+        "PSYCHOLOGICAL":     ("🎯", "#2c7be5", "Psychological level"),
+    }
+    if critical_levels:
+        level_rows = ""
+        for lv in critical_levels:
+            icon, color, _ = status_icons.get(lv["status"], ("•", "#555", ""))
+            level_rows += f'''<tr>
+              <td><b>{lv["price"]}</b></td>
+              <td><span style="color:{color}">{icon} {lv["note"]}</span></td>
+            </tr>'''
+        critical_html = f'''<div style="margin:16px 0">
+          <h4 style="color:#1a1a2e;margin-bottom:8px">🎯 Critical Levels NOW</h4>
+          <table style="width:100%;font-size:13px">
+            <tr style="border-bottom:2px solid #eee">
+              <th style="text-align:left;padding:6px 12px 6px 0;color:#555;background:none;font-weight:600">Level</th>
+              <th style="text-align:left;padding:6px 0;color:#555;background:none;font-weight:600">Status</th>
+            </tr>
+            {level_rows}
+          </table>
+        </div>'''
+    else:
+        critical_html = ""
+
+    # Scenario probabilities
+    scenarios = a.get("scenarios", [])
+    if scenarios:
+        scen_rows = ""
+        for s in scenarios:
+            prob = s["probability"]
+            bar_color = "#00b894" if prob >= 60 else "#fdcb6e" if prob >= 40 else "#d63031"
+            scen_rows += f'''<tr>
+              <td style="padding:8px 12px 8px 0;font-weight:600">{s["description"]}</td>
+              <td style="padding:8px 0;white-space:nowrap">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div style="background:#e0e0e0;border-radius:4px;height:8px;width:100px">
+                    <div style="width:{prob}%;background:{bar_color};height:8px;border-radius:4px"></div>
+                  </div>
+                  <b style="color:{bar_color}">{prob}%</b>
+                </div>
+              </td>
+            </tr>'''
+        scenarios_html = f'''<div style="margin:16px 0">
+          <h4 style="color:#1a1a2e;margin-bottom:8px">📊 Scenario Probabilities</h4>
+          <table style="width:100%;font-size:13px">
+            <tr style="border-bottom:2px solid #eee">
+              <th style="text-align:left;padding:6px 12px 6px 0;color:#555;background:none;font-weight:600">Scenario</th>
+              <th style="text-align:left;padding:6px 0;color:#555;background:none;font-weight:600">Probability</th>
+            </tr>
+            {scen_rows}
+          </table>
+        </div>'''
+    else:
+        scenarios_html = ""
+
     analysis_html = _format_analysis_text(a.get("full_analysis", ""))
 
     return f'''<div class="panel" style="margin-bottom:20px">
@@ -212,6 +275,8 @@ def render_analysis_card(a: dict, idx: int) -> str:
   </div>
 
   {snap_table}
+  {critical_html}
+  {scenarios_html}
   {rec_box}
 
   <details>
