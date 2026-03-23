@@ -439,7 +439,7 @@ def build_report(account: dict,
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta http-equiv="refresh" content="300">
+  <meta http-equiv="refresh" content="10">
   <title>AI Market Analysis Report</title>
   <style>{CSS}</style>
 </head>
