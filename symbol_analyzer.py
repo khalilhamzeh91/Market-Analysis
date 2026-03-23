@@ -1,4 +1,5 @@
 import re
+import json
 import anthropic
 import config
 import data_fetcher
@@ -88,26 +89,7 @@ BUY / SELL / WAIT
 - Risk/Reward ratio: [calculated]
 - If WAIT: what condition must be met before entry is justified?
 
-### 10. CRITICAL LEVELS NOW
-List exactly 4-6 key price levels that matter RIGHT NOW. For each level provide its current status.
-Use ONLY these status values: BROKEN_RESISTANCE | BEING_TESTED | SUPPORT | RESISTANCE | RECENT_LOW | RECENT_HIGH | PSYCHOLOGICAL
-Format each line EXACTLY like this:
-LEVEL: [price] | STATUS: [status] | NOTE: [short description]
-
-Example:
-LEVEL: 3245.00 | STATUS: BEING_TESTED | NOTE: Key intraday support being tested now
-LEVEL: 3280.00 | STATUS: RESISTANCE | NOTE: H4 resistance confluence with EMA 50
-
-### 11. SCENARIO PROBABILITIES
-Give 2-3 most probable scenarios RIGHT NOW with a percentage probability each (must sum to 100%).
-Format EXACTLY like this:
-SCENARIO: [description] | PROBABILITY: [number]%
-
-Example:
-SCENARIO: Bounce from 3245 back to 3280 | PROBABILITY: 55%
-SCENARIO: Break below 3245 towards 3210 | PROBABILITY: 45%
-
-### 12. CONFIDENCE SCORE
+### 10. CONFIDENCE SCORE
 Rate your confidence 0-100:
 - 90-100: All timeframes aligned, clear setup
 - 70-89: Good setup with minor conflicting signals
@@ -116,6 +98,26 @@ Rate your confidence 0-100:
 
 Confidence Score: [NUMBER]/100
 Primary reason: [one sentence]
+
+### 11. STRUCTURED DATA
+After your full analysis, output ONLY this JSON block. Do not modify the structure. Fill in actual values:
+
+```json
+{{
+  "critical_levels": [
+    {{"price": "0000.00", "status": "BEING_TESTED", "note": "describe in 5 words"}},
+    {{"price": "0000.00", "status": "SUPPORT", "note": "describe in 5 words"}},
+    {{"price": "0000.00", "status": "RESISTANCE", "note": "describe in 5 words"}},
+    {{"price": "0000.00", "status": "BROKEN_RESISTANCE", "note": "describe in 5 words"}}
+  ],
+  "scenarios": [
+    {{"description": "describe scenario", "probability": 55}},
+    {{"description": "describe scenario", "probability": 45}}
+  ]
+}}
+```
+
+Status values allowed: BEING_TESTED, SUPPORT, RESISTANCE, BROKEN_RESISTANCE, RECENT_LOW, RECENT_HIGH, PSYCHOLOGICAL
 
 Be analytical, not generic. Reference actual price levels."""
 
@@ -180,24 +182,15 @@ def parse_analysis(raw: str) -> dict:
     if m:
         result["risk_reward"] = m.group(1).strip()
 
-    # Critical levels
-    levels = []
-    for m in re.finditer(r"LEVEL:\s*([\d.,]+)\s*\|\s*STATUS:\s*(\w+)\s*\|\s*NOTE:\s*([^\n]+)", raw, re.IGNORECASE):
-        levels.append({
-            "price":  m.group(1).strip(),
-            "status": m.group(2).strip().upper(),
-            "note":   m.group(3).strip(),
-        })
-    result["critical_levels"] = levels
-
-    # Scenarios
-    scenarios = []
-    for m in re.finditer(r"SCENARIO:\s*([^|]+)\|\s*PROBABILITY:\s*(\d+)%", raw, re.IGNORECASE):
-        scenarios.append({
-            "description": m.group(1).strip(),
-            "probability": int(m.group(2)),
-        })
-    result["scenarios"] = scenarios
+    # Extract JSON block for critical levels and scenarios
+    m = re.search(r"```json\s*(\{.*?\})\s*```", raw, re.DOTALL)
+    if m:
+        try:
+            data = json.loads(m.group(1))
+            result["critical_levels"] = data.get("critical_levels", [])
+            result["scenarios"]       = data.get("scenarios", [])
+        except json.JSONDecodeError:
+            pass
 
     return result
 
